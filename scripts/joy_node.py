@@ -15,12 +15,10 @@ class Ur3JoyControllerRos():
         self.sub = message_filters.Subscriber(joy_topic, Joy)
         self.cache = message_filters.Cache(self.sub, cache_size=1, allow_headerless=False)
         self.scale = scale
-        self.counter = 0
         self.last_pose = self.robot.get_pose()
 
     def callback(self):
         data = self.cache.getLast()
-        #print(data)
         if data is not None:
             if data.axes[0] == 0 and data.axes[1] == 0 and data.axes[4] == 0:
                 print("zeros")
@@ -30,10 +28,7 @@ class Ur3JoyControllerRos():
                 dy = data.axes[0] * self.scale
                 dz = data.axes[4] * self.scale
                 self.last_pose =  self.last_pose + np.array([dx, dy, dz, 0, 0, 0])
-                self.counter += 1
-                if self.counter == 10:
-                    self.robot.move([self.last_pose], False, True, a=1, v=0.05)
-                    self.counter = 0
+                self.robot.move([self.last_pose], False, True, a=1, v=0.05)
 
             except:
                 print("Oops!")
