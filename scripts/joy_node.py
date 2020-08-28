@@ -5,16 +5,19 @@ import sys
 import rospy
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Joy
+from std_msgs.msg import String
 import message_filters
 
 import robot_controller
 
 
 class Ur3JoyControllerRos():
-    def __init__(self, ip='150.254.47.171', joy_topic="/joy", scale=0.001):
+    def __init__(self, ip='150.254.47.171', joy_topic="/joy", gripper_topic="/gripper/command", scale=0.001):
         self.robot = robot_controller.Ur3(ip, 30003, 30002)
         self.sub = message_filters.Subscriber(joy_topic, Joy)
         self.cache = message_filters.Cache(self.sub, cache_size=1, allow_headerless=False)
+        self.pub = rospy.Publisher(gripper_topic, String, queue_size=1)
+
         self.scale = scale
         self.orient_scale = 0.01
         self.last_pose = self.robot.get_pose()
@@ -41,6 +44,15 @@ class Ur3JoyControllerRos():
 
             except:
                 print("Oops!")
+
+            if data.buttons[12] == 1:
+                self.pub.publish('close')
+            elif data.buttons[13] == 1:
+                self.pub.publish('open')
+            elif data.buttons[14] == 1:
+                self.pub.publish('semi_close')
+            elif data.buttons[15] == 1:
+                self.pub.publish('semi_open')
 
 
 if __name__ == '__main__':
