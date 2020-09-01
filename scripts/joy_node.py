@@ -21,10 +21,12 @@ class Ur3JoyControllerRos():
         self.scale = scale
         self.orient_scale = 0.01
         self.last_pose = self.robot.get_pose()
+        self.last_data_h_seq = None
 
     def callback(self):
         data = self.cache.getLast()
-        if data is not None:
+        if data is not None and data.header.seq != self.last_data_h_seq:
+            self.last_data_h_seq = data.header.seq
             if not(abs(data.axes[0]) < 0.1 and abs(data.axes[1]) < 0.1 and abs(data.axes[3]) < 0.1):
                 try:
                     if data.buttons[5] == 0:
@@ -38,6 +40,7 @@ class Ur3JoyControllerRos():
                         dz = -data.axes[3] * self.orient_scale
                         self.last_pose = self.last_pose + np.array([0, 0, 0, dx, dy, dz])
 
+                    print(data)
                     self.robot.move([self.last_pose], False, True, a=1, v=0.05)
 
                 except:
