@@ -12,7 +12,7 @@ import robot_controller
 
 
 class Ur3JoyControllerRos():
-    def __init__(self, ip='150.254.47.171', joy_topic="/joy", gripper_topic="/gripper/command", scale=0.001):
+    def __init__(self, ip='192.168.0.245', joy_topic="/joy", gripper_topic="/gripper/command", scale=0.001):
         self.robot = robot_controller.Ur3(ip, 30003, 30002)
         self.sub = message_filters.Subscriber(joy_topic, Joy)
         self.cache = message_filters.Cache(self.sub, cache_size=1, allow_headerless=False)
@@ -30,14 +30,14 @@ class Ur3JoyControllerRos():
                 return
             try:
                 if data.buttons[5] == 0:
-                    dx = data.axes[1] * self.scale
-                    dy = data.axes[0] * self.scale
-                    dz = data.axes[4] * self.scale
+                    dx = -data.axes[1] * self.scale
+                    dy = -data.axes[0] * self.scale
+                    dz = -data.axes[3] * self.scale
                     self.last_pose = self.last_pose + np.array([dx, dy, dz, 0, 0, 0])
                 elif data.buttons[5] == 1:
-                    dx = data.axes[1] * self.orient_scale
-                    dy = data.axes[0] * self.orient_scale
-                    dz = data.axes[4] * self.orient_scale
+                    dx = -data.axes[1] * self.orient_scale
+                    dy = -data.axes[0] * self.orient_scale
+                    dz = -data.axes[3] * self.orient_scale
                     self.last_pose = self.last_pose + np.array([0, 0, 0, dx, dy, dz])
 
                 self.robot.move([self.last_pose], False, True, a=1, v=0.05)
@@ -45,13 +45,13 @@ class Ur3JoyControllerRos():
             except:
                 print("Oops!")
 
-            if data.buttons[12] == 1:
+            if data.buttons[0] == 1:
                 self.pub.publish('close')
-            elif data.buttons[13] == 1:
+            elif data.buttons[3] == 1:
                 self.pub.publish('open')
-            elif data.buttons[14] == 1:
+            elif data.buttons[1] == 1:
                 self.pub.publish('semi_close')
-            elif data.buttons[15] == 1:
+            elif data.buttons[2] == 1:
                 self.pub.publish('semi_open')
 
 
