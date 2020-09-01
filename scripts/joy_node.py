@@ -16,7 +16,7 @@ class Ur3JoyControllerRos():
         self.robot = robot_controller.Ur3(ip, 30003, 30002)
         self.sub = message_filters.Subscriber(joy_topic, Joy)
         self.cache = message_filters.Cache(self.sub, cache_size=1, allow_headerless=False)
-        self.pub = rospy.Publisher(gripper_topic, String, queue_size=1)
+        self.pub = rospy.Publisher(gripper_topic, String, queue_size=2)
 
         self.scale = scale
         self.orient_scale = 0.01
@@ -25,25 +25,25 @@ class Ur3JoyControllerRos():
     def callback(self):
         data = self.cache.getLast()
         if data is not None:
-            if abs(data.axes[0]) < 0.1 and abs(data.axes[1]) < 0.1 and abs(data.axes[4]) < 0.1:
+            if not(abs(data.axes[0]) < 0.1 and abs(data.axes[1]) < 0.1 and abs(data.axes[3]) < 0.1):
+                try:
+                    if data.buttons[5] == 0:
+                        dx = -data.axes[1] * self.scale
+                        dy = -data.axes[0] * self.scale
+                        dz = -data.axes[3] * self.scale
+                        self.last_pose = self.last_pose + np.array([dx, dy, dz, 0, 0, 0])
+                    elif data.buttons[5] == 1:
+                        dx = -data.axes[1] * self.orient_scale
+                        dy = -data.axes[0] * self.orient_scale
+                        dz = -data.axes[3] * self.orient_scale
+                        self.last_pose = self.last_pose + np.array([0, 0, 0, dx, dy, dz])
+
+                    self.robot.move([self.last_pose], False, True, a=1, v=0.05)
+
+                except:
+                    print("Oops!")
+            else:
                 print("zeros")
-                return
-            try:
-                if data.buttons[5] == 0:
-                    dx = -data.axes[1] * self.scale
-                    dy = -data.axes[0] * self.scale
-                    dz = -data.axes[3] * self.scale
-                    self.last_pose = self.last_pose + np.array([dx, dy, dz, 0, 0, 0])
-                elif data.buttons[5] == 1:
-                    dx = -data.axes[1] * self.orient_scale
-                    dy = -data.axes[0] * self.orient_scale
-                    dz = -data.axes[3] * self.orient_scale
-                    self.last_pose = self.last_pose + np.array([0, 0, 0, dx, dy, dz])
-
-                self.robot.move([self.last_pose], False, True, a=1, v=0.05)
-
-            except:
-                print("Oops!")
 
             if data.buttons[0] == 1:
                 self.pub.publish('close')
