@@ -12,8 +12,9 @@ import robot_controller
 
 
 class Ur3JoyControllerRos():
-    def __init__(self, ip='192.168.0.191', joy_topic="/joy", gripper_topic="/gripper/command", scale=0.001):
-        self.robot = robot_controller.Ur3(ip, 30003, 30002)
+    def __init__(self, robot_ip, joy_topic="/joy", gripper_topic="/gripper/command", scale=0.001):
+        print('Connecting to {}'.format(robot_ip))
+        self.robot = robot_controller.Ur3(robot_ip, 30003, 30002)
         self.sub = message_filters.Subscriber(joy_topic, Joy)
         self.cache = message_filters.Cache(self.sub, cache_size=1, allow_headerless=False)
         self.pub = rospy.Publisher(gripper_topic, String, queue_size=2)
@@ -30,6 +31,7 @@ class Ur3JoyControllerRos():
         data = self.cache.getLast()
         if data is not None and data.header.seq != self.last_data_h_seq:
             self.last_data_h_seq = data.header.seq
+            # if not(abs(data.axes[0]) < 0.1 and abs(data.axes[1]) < 0.1 and abs(data.axes[3]) < 0.1):
             dx, dy, dz = self.remove_dead_zone((data.axes[1], data.axes[0], data.axes[3]))
 
             if (dx or dy or dz) != 0:
@@ -77,9 +79,20 @@ class Ur3JoyControllerRos():
         return sticks
 
 
+def parse_params(namespace='ur_joy'):
+    namespace = rospy.get_param('~namespace', namespace)
+    return {
+        'namespace': namespace,
+        'robot_ip': rospy.get_param('~robot_ip')
+    }
+
+
 if __name__ == '__main__':
-    rospy.init_node("ur3_joy_controller")
-    controller = Ur3JoyControllerRos()
+    namespace = 'ur3_joy_controller'
+    rospy.init_node(namespace)
+    params = parse_params()
+
+    controller = Ur3JoyControllerRos(robot_ip=params['robot_ip'])
     r = rospy.Rate(5)
     while not rospy.is_shutdown():
         controller.callback()

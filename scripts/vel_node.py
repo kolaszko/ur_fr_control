@@ -10,7 +10,7 @@ import robot_controller
 
 
 class Ur3CmdVelControllerRos():
-    def __init__(self, ip='150.254.47.146', joy_topic="/cmd_vel", scale = 0.005):
+    def __init__(self, ip, joy_topic="/cmd_vel", scale = 0.005):
         self.robot = robot_controller.Ur3(ip, 30003, 30002)
         self.sub = message_filters.Subscriber(joy_topic, Twist)
         self.cache = message_filters.Cache(self.sub, cache_size=1, allow_headerless=True)
@@ -37,11 +37,21 @@ class Ur3CmdVelControllerRos():
             except:
                 print("Oops!")
 
+def parse_params(namespace='ur_joy'):
+    namespace = rospy.get_param('~namespace', namespace)
+    return {
+        'namespace': namespace,
+        'robot_ip': rospy.get_param('~robot_ip')
+    }
+
 
 
 if __name__ == '__main__':
-    rospy.init_node("ur3_fr_joy_controller")
-    controller = Ur3CmdVelControllerRos()
+    namespace = 'ur3_joy_controller'
+    rospy.init_node(namespace)
+    params = parse_params()
+
+    controller = Ur3CmdVelControllerRos(ip=params['robot_ip'])
     r = rospy.Rate(5)
     while not rospy.is_shutdown():
         controller.callback()
