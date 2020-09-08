@@ -12,7 +12,7 @@ import robot_controller
 
 
 class Ur3JoyControllerRos():
-    def __init__(self, ip='192.168.0.245', joy_topic="/joy", gripper_topic="/gripper/command", scale=0.001):
+    def __init__(self, ip='192.168.0.191', joy_topic="/joy", gripper_topic="/gripper/command", scale=0.001):
         self.robot = robot_controller.Ur3(ip, 30003, 30002)
         self.sub = message_filters.Subscriber(joy_topic, Joy)
         self.cache = message_filters.Cache(self.sub, cache_size=1, allow_headerless=False)
@@ -22,31 +22,41 @@ class Ur3JoyControllerRos():
         self.orient_scale = 0.01
         self.last_pose = self.robot.get_pose()
         self.last_data_h_seq = None
+        self.dead_zone = 0.2
+        self.update_count = 20
+        self.update_counter = 0
 
     def callback(self):
         data = self.cache.getLast()
         if data is not None and data.header.seq != self.last_data_h_seq:
             self.last_data_h_seq = data.header.seq
-            if not(abs(data.axes[0]) < 0.1 and abs(data.axes[1]) < 0.1 and abs(data.axes[3]) < 0.1):
+            dx, dy, dz = self.remove_dead_zone((data.axes[1], data.axes[0], data.axes[3]))
+
+            if (dx or dy or dz) != 0:
                 try:
                     if data.buttons[5] == 0:
-                        dx = -data.axes[1] * self.scale
-                        dy = -data.axes[0] * self.scale
-                        dz = -data.axes[3] * self.scale
+                        dx = -dx * self.scale
+                        dy = -dy * self.scale
+                        dz = -dz * self.scale
                         self.last_pose = self.last_pose + np.array([dx, dy, dz, 0, 0, 0])
                     elif data.buttons[5] == 1:
-                        dx = -data.axes[1] * self.orient_scale
-                        dy = -data.axes[0] * self.orient_scale
-                        dz = -data.axes[3] * self.orient_scale
+                        dx = -dx * self.orient_scale
+                        dy = -dy * self.orient_scale
+                        dz = -dz * self.orient_scale
                         self.last_pose = self.last_pose + np.array([0, 0, 0, dx, dy, dz])
 
-                    print(data)
                     self.robot.move([self.last_pose], False, True, a=1, v=0.05)
+                    self.update_counter += 1
+                    print(self.update_counter)
 
                 except:
                     print("Oops!")
-            else:
-                print("zeros")
+
+            if self.update_counter == self.update_count:
+                self.update_counter = 0
+                print('===================================================')
+                print(self.last_pose)
+                print('===================================================')
 
             if data.buttons[0] == 1:
                 self.pub.publish('close')
@@ -56,6 +66,15 @@ class Ur3JoyControllerRos():
                 self.pub.publish('semi_close')
             elif data.buttons[2] == 1:
                 self.pub.publish('semi_open')
+
+    def remove_dead_zone(self, values):
+        sticks = []
+        for v in values:
+            if abs(v) > self.dead_zone:
+                sticks.append(v)
+            else:
+                sticks.append(0)
+        return sticks
 
 
 if __name__ == '__main__':
